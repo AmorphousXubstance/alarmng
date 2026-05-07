@@ -1,0 +1,10 @@
+[Unit]
+Description=Minutely Timer for Alarm!NG, Triggers The Service File
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+AccuracySec=1sec
+Unit=alarmng.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,283 @@
+#!/usr/bin/python
+
+'''
+    Alarm!NG : A light & fast curses based TUI alarm clock implemented using systemd.timer
+    Copyright (C) 2026  AmorphousXubstance (alias: Sorairo Yorimitsu)
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+'''
+
+import curses, configparser, os
+from curses import wrapper, textpad
+from curses.textpad import Textbox
+
+os.environ.setdefault("ESCDELAY", "25")
+confile = os.path.expanduser("~/.config/alarmng/alarmng.conf")
+if not os.path.exists(confile):
+    confile = "/etc/alarmng.conf"
+alms = os.path.expanduser("~/.config/alarmng/alarms.txt")
+ext = 0
+
+def dayname(typ,no):
+    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun", " Mon | Tue | Wed | Thu | Fri | Sat | Sun "]
+    month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "All Year"]
+    try:
+        no = int(no)
+    except:
+        no = 0
+    if typ == 'd':
+        return days[no-1]
+    elif typ == 'w':
+        if no != 0:
+            return str(no)+"TH"
+        else:
+            return "Every Day Of The Month"
+    elif typ == 'm':
+        return month[no-1]
+
+def manager(oprn,det=''):
+    global alms
+    with open(alms, 'r') as f:
+        cont = f.read()
+    cont = cont.split("\n")
+    if oprn == 'r':
+        return cont
+    elif oprn == 'a':
+        sno = str(len(cont)+1)
+        with open(alms, 'a') as f:
+            f.write('\n' + f"{sno} | {det}")
+    elif oprn == 'd':
+        cont[det-1] = ''
+        sno = 1
+        with open(alms, 'w') as f:
+            for i in cont:
+                trim = i.split('| ')
+                if i != '' and sno == 1:
+                    f.write(f"{sno} | {trim[1]}")
+                    sno += 1
+                elif i != '':
+                    f.write(f"\n{sno} | {trim[1]}")
+                    sno += 1
+                elif i == '':
+                    pass
+    elif oprn == 'e':
+        cont[int(det.split(" | ")[0])-1] = det
+        with open(alms, 'w') as f:
+            for i in cont:
+                if cont[0] == i:
+                    f.write(i)
+                else:
+                    f.write('\n'+i)
+    elif oprn == "act":
+        alm = cont[int(det)-1].split(',')
+        alm[6] = '+'
+        almedit = ""
+        for i in alm:
+            almedit += i + ','
+        cont[int(det)-1] = almedit[0:-1]
+        with open(alms, 'w') as f:
+            for i in cont:
+                if cont[0] == i:
+                    f.write(i)
+                else:
+                    f.write('\n'+i)
+    elif oprn == "de":
+        alm = cont[int(det)-1].split(',')
+        alm[6] = '-'
+        almedit = ""
+        for i in alm:
+            almedit += i + ','
+        cont[int(det)-1] = almedit[0:-1]
+        with open(alms, 'w') as f:
+            for i in cont:
+                if cont[0] == i:
+                    f.write(i)
+                else:
+                    f.write('\n'+i)
+
+def body(stdscr,clr=False):
+    if clr:
+        for i in range(3, curses.LINES-10):
+            stdscr.addstr(i,5, " " * ((curses.COLS//2)-6))
+    almlist = manager('r')
+    start = 0
+    for i in almlist:
+        lbl = i.split(',')
+        stdscr.addstr(3+start,5,lbl[0])
+        start += 1
+
+def bodyright(stdscr,alnum = 1,clr=False):
+    if clr:
+        for i in range(3, curses.LINES-10):
+            stdscr.addstr(i,(curses.COLS//2)+1, " " * ((curses.COLS//2)-6))
+    alm = manager('r')
+    almdetail = alm[alnum-1]
+    almdetail = almdetail.split(" | ")[1]
+    almdetail = almdetail.split(',')
+    pos = 0
+    disp = ["Alarm Name :", "<<<---| "+almdetail[0],"Alarm Time :", "--->>> "+almdetail[1]+" HRS [Military Time]", "Alarm Day :", dayname(almdetail[2][0],almdetail[2][1]), "Alarm Date (Of The Month) :", dayname(almdetail[3][0],almdetail[3][1:]), "Alarm Month :", dayname(almdetail[4][0],almdetail[4][1:]), "Description :", almdetail[5], f"Status (Active:+/Inactive:-) : {almdetail[6]}"]
+    for i in range(0,len(disp),2):
+        stdscr.addstr(3+pos,(curses.COLS//2)+5,disp[i])
+        try:
+            if disp[i+1].strip() != '':
+                stdscr.addstr(4+pos,(curses.COLS//2)+3,disp[i+1])
+            else:
+                stdscr.addstr(4+pos,(curses.COLS//2)+3,"-- None Added --")
+            stdscr.addstr(5+pos,(curses.COLS//2)+3,"-"*((curses.COLS//2)-7))
+        except:
+            pass
+        pos += 3
+
+def comd(stdscr,label):
+    stdscr.addstr(curses.LINES-4,6,label)
+    entry = curses.newwin(1,(curses.COLS//2-6),curses.LINES-2,5)
+    textpad.rectangle(stdscr,(curses.LINES-3),5-1,(curses.LINES)-1,(curses.COLS//2)-1)
+    box = Textbox(entry)
+    stdscr.refresh()
+    def extch(ch):
+        global ext
+        if ch == 27:
+            ext = 1
+            return 7
+        return ch
+    box.edit(extch)
+    msg = box.gather()
+    stdscr.move(curses.LINES-2,5)
+    del entry
+    for i in range(curses.LINES-4,curses.LINES):
+        stdscr.addstr(i,4,' '*((curses.COLS//2)-4))
+    if ext == 1:
+        return False
+    return msg
+
+def main(stdscr):
+    curses.assume_default_colors(120,0)
+    stdscr.clear()
+    stdscr.keypad(True)
+
+    ## Splashscreen
+    global confile
+    config = configparser.ConfigParser()
+    config.read(confile)
+    if config.get("SplashScreen", "enabled") == '1':
+        ss = config.get("SplashScreen", "ss").split(',')[1:]
+        for i in range(len(ss)):
+            stdscr.addstr(curses.LINES//2-len(ss)//2+i,(curses.COLS-len(ss[i]))//2,ss[i])
+        stdscr.refresh()
+        stdscr.getch()
+        stdscr.clear()
+
+    ## Headings
+    title = "Alarm!NG : Your TUI Alarm"
+    stdscr.move(0, (curses.COLS - len(title))//2)
+    stdscr.addstr(title, curses.A_BOLD)
+    lefthead = "Your Alarms [<A>,<D> For Add, Delete]"
+    righthead = "Alarm Details [<E>,<a>,<d> For Edit, Activate, Deactivate]"
+    bottomtip = "<q>:Quit | <S>:Set Alarm Track | Arrow Keys:Scroll | <esc>:Exit TextBox "
+    stdscr.addstr(1,(curses.COLS//4 - len(lefthead)//2), lefthead)
+    stdscr.addstr(1,(3*(curses.COLS//4) - len(righthead)//2), righthead)
+    stdscr.addstr(curses.LINES-2,curses.COLS-len(bottomtip),bottomtip)
+
+    ## Body Content
+    textpad.rectangle(stdscr,2,(curses.COLS)//2,(curses.LINES - 2),(curses.COLS)//2)
+    stdscr.refresh()
+    body(stdscr)
+    if manager('r') != ['']:
+        bodyright(stdscr)
+
+    inp = 0
+    curr = 1
+    global ext
+    while chr(inp) != 'q':
+        stdscr.move(2+curr,5)
+        stdscr.refresh()
+        inp = stdscr.getch()
+        if chr(inp) == 'A':
+            try:
+                name = comd(stdscr, "Alarm Name (Do NOT Include <,> or <|>):").strip()
+                time = comd(stdscr, "Alarm Time (In HH:MM Format):").strip()
+                day = comd(stdscr, "Day of The Week (1-7) (For Repetition, <a> For Everyday):").strip()
+                week = comd(stdscr, "Date of The Month (<a> For Every Date):").strip()
+                month = comd(stdscr, "Month of The Year (<a> For Every Month):").strip()
+                desc = comd(stdscr, "Add Description (Optional, Do NOT Include <,> or <|>):").strip()
+            except:
+                ext = 0
+                continue
+            detail = f"{name},{time},d{day},w{week},m{month},{desc},+"
+            manager('a',detail)
+            body(stdscr,True)
+        elif chr(inp) == 'D':
+            try:
+                alno = comd(stdscr, "Alarm Number To Delete:").strip()
+            except:
+                ext = 0
+                continue
+            manager('d',int(alno))
+            body(stdscr,True)
+            curr = 1
+            bodyright(stdscr,curr,True)
+        elif chr(inp) == 'E':
+            try:
+                name = comd(stdscr, "Alarm Name (Do NOT Include <,> or <|>):").strip()
+                time = comd(stdscr, "Alarm Time (In HH:MM Format):").strip()
+                day = comd(stdscr, "Day of The Week (1[Mon]-7[Sun]) (<a> For Everyday):").strip()
+                week = comd(stdscr, "Date of The Month (<a> For Every Date):").strip()
+                month = comd(stdscr, "Month of The Year (<a> For Every Month):").strip()
+                desc = comd(stdscr, "Add Description (Optional, Do NOT Include <,> or <|>):").strip()
+            except:
+                ext = 0
+                continue
+            detail = f"{curr} | {name},{time},d{day},w{week},m{month},{desc},+"
+            manager('e',detail)
+            body(stdscr,True)
+            bodyright(stdscr,curr,True)
+        elif chr(inp) == 'S':
+            try:
+                pth = comd(stdscr, "Enter Complete Path to Alarm File (Or Edit Config):").strip()
+            except:
+                ext = 0
+                continue
+            config.set("Audio","Path", pth)
+            with open('alarmng.conf', 'w') as configle:
+                config.write(configle)
+        elif chr(inp) == 'a':
+            manager("act",curr)
+            bodyright(stdscr,curr,True)
+        elif chr(inp) == 'd':
+            manager("de",curr)
+            bodyright(stdscr,curr,True)
+        else:
+            if manager('r') != [''] and inp == curses.KEY_DOWN:
+                if curr != len(manager('r')):
+                    curr += 1
+                    bodyright(stdscr,curr,True)
+            elif manager('r') != [''] and inp == curses.KEY_UP:
+                if curr != 1:
+                    curr -= 1
+                    bodyright(stdscr,curr,True)
+            stdscr.move(2+curr,5)
+
+    stdscr.clear()
+    if config.get("EndScreen","enabled") == '1':
+        msg = ["Thanks For Trying out Alarm!NG", "Please Consider Contributing To Your Own Distro or The GNU Project or A Charity of Your Choice", "If You Dont Like Me Talking (This Screen) Edit The Program Files", "k bye, <3 u! (Any Key To Exit)"]
+        for i in range(4):
+            stdscr.addstr(curses.LINES//2+(i-2),(curses.COLS - len(msg[i]))//2,msg[i])
+        stdscr.getch()
+        stdscr.refresh()
+
+try:
+    wrapper(main)
+except:
+    print("OOPS, an Error Just Occured...")
+    print("Errors Such as These Usually Occur if The txt File is Damaged or Misplaced. The Engine Will Generate a New File For You When The Clock Strikes The Next Minute.")

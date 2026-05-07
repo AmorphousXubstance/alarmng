@@ -1,0 +1,110 @@
+.\" Contact sorairoyorimitsu@proton.me to correct errors or typos.
+.TH ALARMNG 1 "2026-05-06" "v0.9.0" "ALARMNG USER MANUAL"
+.SH NAME
+Alarm!NG \- A light, fast & simple python & curses based TUI alarm 
+clock implemented using systemd.timer
+.SH SYNOPSIS
+.B alarmng
+.SH DESCRIPTION
+.B Alarm!NG
+is a TUI (Terminal User Interface) utility designed to manage alarms 
+via systemd timers. It features a self-healing alarm list that 
+automatically generates necessary directories in the user's home 
+folder upon execution. Users may also write their alarms in the txt
+file using an editor without the UI.
+.SH OPTIONS
+This program does not currently accept command line arguments. All
+options are specified in the UI.
+.IP
+A \- Add Alarm
+.IP
+D \- Delete Alarm
+.IP
+E \- Edit Highlighted Alarm
+.IP
+S \- Select Alarm Track
+.IP
+a \- Activate Highlighted Alarm
+.IP
+d \- Deactivate Highlighted Alarm
+.IP
+esc \- Exit Entry Textboxes (for A,D,E,S)
+.IP
+q \- Quit
+
+.SH USAGE
+While the interface is designed to be intuitive, certain behaviors
+need to be kept in mind:
+.TP
+.B Startup
+To start the alarm service, first time users must use:
+.IP
+systemctl --user enable alarmng.timer
+.IP
+systemctl --user start alarmng.service
+.TP
+.B Navigation
+Use the arrow keys to navigate the list of alarms.
+.TP
+.B Editing
+The program edits the higlighted alarm, make sure the cursor is 
+highlighting the desired alarm before pressing E. This has been 
+implemented so users can simply edit the highlighted alarm and 
+simultaneously see its contents while editing.
+.TP
+.B File-Regeneration
+If the txt file is accidentally deleted, renamed or moved,
+.B alarmng
+will simply regenerate another txt file with a demo alarm.
+Manual creation or copying is not required.
+.SH FILE FORMAT
+The alarm list is stored as a plain text file. Users may manually 
+append alarms to 
+.I ~/.config/alarmng/alarms.txt 
+without using the TUI.
+.PP
+Each field must not use the '|' or ',' characters, use 'a' for all
+where applicable as follows:
+.IP
+[line number] | [alarm name],HH:MM,d[day],w[date],m[month],[description],[activation]
+.PP
+.B Where:
+.PP
+.B day 
+is an integer for 1(Monday)-7(Sunday) or a for everyday, 
+.PP
+.B date 
+is an integer for date of the month or a for every date, 
+.PP
+.B month 
+is an integer for month number or a for all year,
+.PP
+.B activation 
+is either +(activate) or -(deactivate)
+.PP
+.B Example:
+.IP 
+4 | Medication: Cold,18:45,da,wa,m4,Take meds for cold,+
+.PP
+.B Note:
+Incorrectly formatted lines will simply be ignored.
+.SH FILES
+.PP
+.I /etc/alarmng.conf
+Default config file for alarmng, copy to
+.PP
+.I ~/.config/alarmng/alarmng.conf
+to create a persistent user copy.
+.PP
+.I ~/.config/alarmng/alarms.txt
+Default alarm data file.
+.PP
+.I /usr/share/sounds/alarmng/Sleeping Bees.wav
+Default alarm track, comes pre-packaged (delete if not required)
+.SH SEE ALSO
+.BR systemctl (1)
+.SH BUGS
+Empty alarm lists may cause errors, however, since the list is 
+empty, users may delete the file itself and generate a new one.
+.SH AUTHOR
+Sorairo Yorimitsu (https://github.com/AmorphousXubstance/alarmng)

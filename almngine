@@ -1,0 +1,69 @@
+#!/usr/bin/python
+
+'''
+    Alarm!NG : A light & fast curses based TUI alarm clock implemented using systemd.timer
+    Copyright (C) 2026  AmorphousXubstance (alias: Sorairo Yorimitsu)
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+'''
+
+import subprocess, time, os, signal, configparser
+
+personal = os.path.expanduser("~/.config/alarmng/")
+if not os.path.exists(personal):
+    os.mkdir(personal)
+confile = os.path.expanduser("~/.config/alarmng/alarmng.conf")
+alms = os.path.expanduser("~/.config/alarmng/alarms.txt")
+if not os.path.exists(confile):
+    confile = "/etc/alarmng.conf"
+if not os.path.exists(alms):
+    with open(alms,'w') as f:
+        f.write("1 | Demo,09:45,da,wa,ma,This is a demo alarm.,-")
+
+with open(alms, 'r') as f:
+    cont = f.read()
+cont = cont.split('\n')
+for i in cont:
+    try:
+        alm = i.split(',')
+        tm = alm[1].strip()
+        dy = alm[2].strip()
+        wk = alm[3].strip()
+        mth = alm[4].strip()
+        ac = alm[6].strip()
+        chk = [dy[1:], wk[1:], mth[1:]]
+        chk2 = ["%u","%d","%m"]
+        for i in range(3):
+            if chk[i] == 'a':
+                chk[i] = True
+            else:
+                try:
+                    chk[i] = (int(time.strftime(chk2[i])) == int(chk[i]))
+                except:
+                    print("Unable to Compare Given Day, Date or Month.")
+        chk = all(chk)
+    except:
+        print("Failed iteration; usually occurs due to the editor for manual entry in the alarm file adding a newline at the end.")
+    if time.strftime("%H:%M") == tm and ac == '+' and chk:
+        config = configparser.ConfigParser()
+        config.read(confile)
+        alarm_path = config.get("Audio", "path")
+        proc = subprocess.Popen(["pw-play", alarm_path],env=os.environ)
+        ans = subprocess.run(["notify-send","-a","Alarm!NG",f"{alm[0].split(" | ")[1]}",f"{alm[5]}","-t",'0',"--action=stop=StopAlarm"],capture_output=True,text=True,env=os.environ)
+        os.kill(proc.pid, signal.SIGTERM)
+        '''
+        ans = ans.stdout.strip()
+        if ans == "stop":
+            pass
+        '''

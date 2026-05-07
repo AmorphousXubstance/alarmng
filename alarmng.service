@@ -1,0 +1,10 @@
+[Unit]
+Description=Alarm!NG Service File, Runs The Alarm Engine
+Documentation=man:alarmng(1) https://github.com/AmorphousXubstance/alarmng
+
+[Service]
+Type=simple
+ExecStart=/usr/lib/alarmng/almngine
+
+[Install]
+WantedBy=multi-user.target
